@@ -335,7 +335,7 @@
     </div>
 
     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-      <button class="btn btn-outline loc-btn" id="locBtn" onclick="getLocation()" style="flex: 1; margin-bottom: 0;">
+      <button class="btn btn-outline loc-btn" id="locBtn" onclick="requestLocationPermission()" style="flex: 1; margin-bottom: 0;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
           <circle cx="12" cy="10" r="3"/>
@@ -372,6 +372,28 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- Permission Modal -->
+  <div class="modal-overlay" id="permModal" style="display: none; align-items: center; justify-content: center;" onclick="if(event.target === this) closePermModal()">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <div style="padding: 32px 24px;">
+        <div class="icon-wrap" style="width: 80px; height: 80px; background: var(--primary-light); margin: 0 auto 24px;">
+          <svg style="width: 40px; height: 40px; color: var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <h3 style="font-size: 1.4rem; margin-bottom: 12px; font-weight: 700;">Location Access</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.5;">
+          To accurately record your survey submission, we need to access your current location. Please allow location access on the next prompt.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <button class="btn btn-primary" onclick="acceptPermission()">Enable Location</button>
+          <button class="btn btn-outline" onclick="closePermModal()">Not Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Map Modal -->
   <div class="modal-overlay" id="mapModal" style="display: none;" onclick="if(event.target === this) toggleMap()">
@@ -476,6 +498,40 @@
         btn.disabled = false;
         btn.innerHTML = btn.dataset.original;
       }
+    }
+
+    let hasShownPermModal = false;
+
+    async function requestLocationPermission() {
+      // If permissions API is supported, check if we already have it granted
+      let isGranted = false;
+      if (navigator.permissions) {
+        try {
+          const perm = await navigator.permissions.query({ name: 'geolocation' });
+          if (perm.state === 'granted') {
+            isGranted = true;
+          }
+        } catch (e) {
+          // Ignore error and fall back to default behavior
+        }
+      }
+      
+      // Show custom popup if not already granted and haven't shown it this session
+      if (isGranted || hasShownPermModal) {
+        getLocation();
+      } else {
+        document.getElementById('permModal').style.display = 'flex';
+      }
+    }
+
+    function closePermModal() {
+      document.getElementById('permModal').style.display = 'none';
+      hasShownPermModal = true;
+    }
+
+    function acceptPermission() {
+      closePermModal();
+      getLocation();
     }
 
     function getLocation() {
