@@ -546,35 +546,57 @@
       if (loaderOverlay) loaderOverlay.classList.add('show');
       setBtnLoading(locBtn, true);
 
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          lat = pos.coords.latitude;
-          lon = pos.coords.longitude;
-          setBtnLoading(locBtn, false);
-          showStatus('Location captured successfully', 'success');
-          
-          if (map) {
-            if (marker) {
-              marker.setLatLng([lat, lon]);
-            } else {
-              marker = L.marker([lat, lon]).addTo(map);
-            }
-            map.setView([lat, lon], 15);
+      const geoOptionsHigh = { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 };
+      const geoOptionsLow = { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 };
+
+      function success(pos) {
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+        setBtnLoading(locBtn, false);
+        showStatus('Location captured successfully', 'success');
+
+        if (map) {
+          if (marker) {
+            marker.setLatLng([lat, lon]);
+          } else {
+            marker = L.marker([lat, lon]).addTo(map);
           }
-          updateSubmitState();
-          if (loaderOverlay) loaderOverlay.classList.remove('show');
-        },
-        (err) => {
-          setBtnLoading(locBtn, false);
-          if (loaderOverlay) loaderOverlay.classList.remove('show');
-          let msg = 'Unable to retrieve location.';
-          if (err.code === 1) msg = 'Location access denied. Please allow permission.';
-          if (err.code === 2) msg = 'Location unavailable. Try again later.';
-          if (err.code === 3) msg = 'Location request timed out.';
-          showStatus(msg, 'error');
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+          map.setView([lat, lon], 15);
+        }
+        updateSubmitState();
+        if (loaderOverlay) loaderOverlay.classList.remove('show');
+      }
+
+      function fail(err) {
+        // if timeout, try a lower-accuracy attempt once (better for mobile when GPS cold-starts)
+        if (err && err.code === 3) {
+          showStatus('Location timed out. Retrying with lower accuracy...', 'info');
+          navigator.geolocation.getCurrentPosition(
+            success,
+            (err2) => {
+              setBtnLoading(locBtn, false);
+              if (loaderOverlay) loaderOverlay.classList.remove('show');
+              let msg = 'Unable to retrieve location.';
+              if (err2 && err2.code === 1) msg = 'Location access denied. Please allow permission.';
+              if (err2 && err2.code === 2) msg = 'Location unavailable. Try again later.';
+              if (err2 && err2.code === 3) msg = 'Location request timed out. Try again near a window or outdoors.';
+              showStatus(msg, 'error');
+            },
+            geoOptionsLow
+          );
+          return;
+        }
+
+        setBtnLoading(locBtn, false);
+        if (loaderOverlay) loaderOverlay.classList.remove('show');
+        let msg = 'Unable to retrieve location.';
+        if (err && err.code === 1) msg = 'Location access denied. Please allow permission.';
+        if (err && err.code === 2) msg = 'Location unavailable. Try again later.';
+        if (err && err.code === 3) msg = 'Location request timed out.';
+        showStatus(msg, 'error');
+      }
+
+      navigator.geolocation.getCurrentPosition(success, fail, geoOptionsHigh);
     }
 
     function validate() {
